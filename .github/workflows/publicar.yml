@@ -1,0 +1,51 @@
+# Publica o pacote no npm quando uma tag v* é enviada (ex.: git tag v0.1.0 && git push --tags).
+# Usa trusted publishing (OIDC): sem NPM_TOKEN. Configure antes, uma vez, em
+# npmjs.com > pacote apipj > Settings > Trusted publishing: GitHub Actions,
+# repositório apipj/apipj-js, workflow publicar.yml.
+name: Publicar no npm
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [18, 20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: node --test
+
+  publicar:
+    needs: testes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: 'https://registry.npmjs.org'
+      # trusted publishing exige npm 11.5.1 ou mais novo
+      - run: npm install -g npm@latest
+      - name: Conferir tag x versão do package.json
+        run: |
+          VERSAO="$(node -p "require('./package.json').version")"
+          if [ "v${VERSAO}" != "${GITHUB_REF_NAME}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} não bate com a versão ${VERSAO} do package.json" >&2
+            exit 1
+          fi
+      - run: node --test
+      - run: npm pack --dry-run
+      - run: npm publish --provenance --access public

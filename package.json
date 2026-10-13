@@ -1,0 +1,44 @@
+{
+  "name": "apipj",
+  "version": "0.1.0",
+  "description": "Cliente oficial da API de CNPJ do apipj: consulta de CNPJ (inclusive alfanumérico) com dados abertos da Receita Federal. Zero dependências.",
+  "type": "module",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "CHANGELOG.md"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": [
+    "cnpj",
+    "cnpj-alfanumerico",
+    "receita-federal",
+    "consulta-cnpj",
+    "brasil",
+    "api"
+  ],
+  "homepage": "https://apipj.com.br",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/apipj/apipj-js.git"
+  },
+  "bugs": {
+    "url": "https://github.com/apipj/apipj-js/issues"
+  },
+  "author": "MASTER BI TECNOLOGIA LTDA (https://apipj.com.br)",
+  "license": "MIT"
+}
