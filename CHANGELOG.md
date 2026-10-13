@@ -2,6 +2,12 @@
 
 Todas as mudanças relevantes deste pacote. Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões seguem [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.1.1] - 2026-10-13
+
+### Alterado
+
+- Descrição, palavras-chave e títulos do README para facilitar a busca no npm (API CNPJ, consultar CNPJ, validar CNPJ, plano gratuito). Nenhuma mudança de código.
+
 ## [0.1.0] - 2026-10-13
 
 Primeira versão.

@@ -1,6 +1,6 @@
-# apipj
+# apipj: API CNPJ gratuita para Node.js e TypeScript
 
-Cliente oficial em JavaScript/TypeScript da **API de CNPJ do [apipj](https://apipj.com.br)**: razão social, situação cadastral, endereço, CNAEs, Simples/MEI e sócios a partir dos dados abertos da Receita Federal, com suporte ao **CNPJ alfanumérico**.
+**API para consultar CNPJ** em JavaScript e TypeScript: o cliente oficial da **API de CNPJ do [apipj](https://apipj.com.br)**, com **plano gratuito** de 50 mil consultas por mês, sem cartão. Consulte CNPJ e receba razão social, situação cadastral, endereço, CNAEs, Simples/MEI e sócios a partir dos dados abertos da Receita Federal, com suporte ao **CNPJ alfanumérico**.
 
 - ESM com tipos TypeScript completos; **zero dependências**.
 - Node.js 18+ (usa o `fetch` nativo). Funciona também em Deno, Bun e runtimes edge/serverless que tenham `fetch`.
@@ -22,7 +22,7 @@ Crie uma conta grátis em [apipj.com.br/criar-conta](https://apipj.com.br/criar-
 export APIPJ_KEY=apipj_live_...
 ```
 
-## Uso
+## Consultar CNPJ
 
 ```js
 import { Apipj, ApipjErro, cnpjValido, normalizarCnpj, formatarCnpj } from 'apipj';
@@ -54,7 +54,7 @@ const status = await api.status();   // { status: 'OK', dataset_month: '2026-09'
 const { plans } = await api.planos();
 ```
 
-### Utilitários locais (offline, sem chamar a API)
+### Validar CNPJ (inclusive alfanumérico), offline e sem chamar a API
 
 ```js
 cnpjValido('12.ABC.345/01DE-35');      // true  (alfanumérico)
@@ -66,7 +66,7 @@ formatarCnpj('11378117000120');        // '11.378.117/0001-20'
 
 `cnpjValido` confere formato e dígitos verificadores (numérico e alfanumérico, IN RFB 2.229/2024); não diz se o CNPJ existe. Também são exportados `validarLocal` (mesmo formato de resposta de `api.validar`) e `calcularDv`.
 
-### Consulta em lote
+### Consultar CNPJ em lote
 
 ```js
 const lista = ['11.378.117/0001-20', '00.000.000/0001-91', '11378117000120', '123'];
@@ -123,7 +123,7 @@ try {
 
 Depois de cada consulta, `api.limites` traz o que a API informou: `{ porMinuto: { limite, restante, reset }, mensal: { limite, restante, reset } }`.
 
-## Limites por plano
+## Limites e plano gratuito
 
 Cada consulta respondida (inclusive `404`) conta 1 na cota mensal; também vale um limite de consultas por minuto por chave. `validar`, `status` e `planos` não consomem cota.
 
