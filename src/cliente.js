@@ -4,6 +4,9 @@ import { Limitador } from './limitador.js';
 import { dormir } from './util.js';
 import { VERSAO } from './versao.js';
 
+/** Cadastro da chave grátis, com a origem desta biblioteca (o servidor mede o canal de captação). */
+const URL_CADASTRO = 'https://apipj.com.br/criar-conta?origem=api-lib-npm-apipj';
+
 const BASE_PADRAO = 'https://apipj.com.br';
 const FORMATOS = ['completo', 'simplificado'];
 /** Erros que valeriam para todos os CNPJs seguintes: consultarVarios para na hora. */
@@ -18,6 +21,8 @@ const FATAIS = new Set(['unauthorized', 'quota_exceeded']);
 export class Apipj {
   /** @type {string|null} */
   #chave;
+  #avisos;
+  #avisouSemChave = false;
   /** @type {typeof fetch|null} */
   #fetch;
   #esperaBaseMs;
@@ -35,11 +40,13 @@ export class Apipj {
       fetch: fetchProprio,
       esperaBaseMs = 1000,
       janelaMs = 60000,
+      avisos = true,
     } = opcoes;
     this.#chave = chave || null;
     this.#fetch = fetchProprio ?? null;
     this.#esperaBaseMs = esperaBaseMs;
     this.#janelaMs = janelaMs;
+    this.#avisos = avisos !== false;
     /** URL base da API, sem barra no fim. */
     this.baseUrl = String(baseUrl).replace(/\/+$/, '');
     /** Tempo máximo de cada tentativa, em ms (0 desliga). */
@@ -54,7 +61,8 @@ export class Apipj {
   }
 
   /**
-   * Consulta os dados cadastrais de um CNPJ (exige chave). Valida o DV localmente antes de chamar.
+   * Consulta os dados cadastrais de um CNPJ. Valida o DV localmente antes de chamar. Sem chave, usa a consulta sem
+   * chave da API (limite de teste por IP; avisa uma vez) e, passado o limite, lança 429 com `signupUrl`.
    *
    * @param {string} cnpj CNPJ numérico ou alfanumérico, com ou sem máscara.
    * @param {{ formato?: 'completo'|'simplificado', signal?: AbortSignal }} [opcoes]
@@ -248,13 +256,18 @@ export class Apipj {
     return exigirJson(res, corpo);
   }
 
+  /** Chave da opção ou de APIPJ_KEY; sem nenhuma, null (consulta sem chave, com limite de teste). */
   #obterChave() {
-    const chave = this.#chave ?? lerChaveDoAmbiente();
-    if (!chave) {
-      throw new ApipjErro(401, 'unauthorized',
-        'Chave de API ausente: use new Apipj({ chave }) ou defina a variável de ambiente APIPJ_KEY. Conta grátis em https://apipj.com.br/criar-conta');
-    }
-    return chave;
+    return this.#chave ?? lerChaveDoAmbiente() ?? null;
+  }
+
+  #avisarSemChave() {
+    if (this.#avisouSemChave || !this.#avisos) return;
+    this.#avisouSemChave = true;
+    const msg = 'apipj: consultando sem chave de API (limite de teste por IP: poucas consultas por minuto e por dia). '
+      + `Crie uma chave grátis, com 10 consultas por minuto e 50 mil por mês, em ${URL_CADASTRO} e use new Apipj({ chave }) ou APIPJ_KEY. `
+      + 'Para não ver este aviso: new Apipj({ avisos: false }).';
+    try { globalThis.console?.warn?.(msg); } catch { /* sem console */ }
   }
 
   /**
@@ -267,7 +280,11 @@ export class Apipj {
       throw new ApipjErro(0, 'fetch_unavailable', 'fetch não está disponível neste ambiente (use Node.js 18+ ou passe a opção fetch)');
     }
     const headers = { Accept: 'application/json', 'User-Agent': `apipj-js/${VERSAO}` };
-    if (autenticar) headers.Authorization = `Bearer ${this.#obterChave()}`;
+    if (autenticar) {
+      const chave = this.#obterChave();
+      if (chave) headers.Authorization = `Bearer ${chave}`;
+      else this.#avisarSemChave();
+    }
     const url = this.baseUrl + caminho;
 
     for (let tentativa = 1; ; tentativa++) {
@@ -352,10 +369,13 @@ export class Apipj {
     const h = (n) => numero(res.headers.get(n));
     const limite = h('x-ratelimit-limit');
     const cota = h('x-quota-limit');
-    if (limite === null && cota === null) return;
+    const diario = h('x-daily-limit');
+    if (limite === null && cota === null && diario === null) return;
     this.limites = {
+      semChave: res.headers.get('x-apipj-acesso') === 'sem-chave',
       porMinuto: { limite, restante: h('x-ratelimit-remaining'), reset: h('x-ratelimit-reset') },
       mensal: { limite: cota, restante: h('x-quota-remaining'), reset: h('x-quota-reset') },
+      diario: { limite: diario, restante: h('x-daily-remaining'), reset: h('x-daily-reset') },
     };
   }
 }
@@ -384,6 +404,7 @@ function erroDaResposta(res, corpo) {
   return new ApipjErro(res.status, code, message, {
     retryAfter,
     upgradeUrl: c.upgrade_url ?? null,
+    signupUrl: c.signup_url ?? null,
     reset: numero(c.reset),
     cnpj: c.cnpj ?? null,
     details: c.details ?? null,

@@ -1,6 +1,6 @@
 {
   "name": "apipj",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "API CNPJ gratuita para Node.js e TypeScript: consultar CNPJ na Receita Federal (razão social, situação, endereço, CNAE, sócios), validar CNPJ e CNPJ alfanumérico. Plano grátis com 50 mil consultas/mês.",
   "type": "module",
   "main": "./src/index.js",

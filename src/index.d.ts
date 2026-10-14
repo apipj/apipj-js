@@ -257,8 +257,10 @@ export interface Planos {
 // ------------------------------------------------------------------ cliente
 
 export interface OpcoesApipj {
-  /** Chave de API (`apipj_live_...`). Padrão: variável de ambiente APIPJ_KEY, lida só quando for preciso. */
+  /** Chave de API (`apipj_live_...`). Padrão: variável de ambiente APIPJ_KEY, lida só quando for preciso. Sem nenhuma, a consulta usa o limite de teste por IP. */
   chave?: string;
+  /** false desliga o aviso único de consulta sem chave. Padrão: true. */
+  avisos?: boolean;
   /** Padrão: https://apipj.com.br */
   baseUrl?: string;
   /** Tempo máximo de cada tentativa, em ms. Padrão: 10000 (0 desliga). */
@@ -301,9 +303,13 @@ export interface ResultadoLote<T = EmpresaCompleta> {
 }
 
 export interface Limites {
+  /** true quando a consulta foi feita sem chave (limite de teste por IP). */
+  semChave: boolean;
   porMinuto: { limite: number | null; restante: number | null; reset: number | null };
-  /** `reset`: epoch Unix (segundos) em que a cota zera. */
+  /** `reset`: epoch Unix (segundos) em que a cota zera. Sem chave, vem tudo null. */
   mensal: { limite: number | null; restante: number | null; reset: number | null };
+  /** Só sem chave: limite por dia por IP; `reset` em epoch Unix. */
+  diario: { limite: number | null; restante: number | null; reset: number | null };
 }
 
 export class Apipj {
@@ -314,7 +320,7 @@ export class Apipj {
   /** Limites informados pela última consulta autenticada (X-RateLimit-* e X-Quota-*). */
   limites: Limites | null;
 
-  /** Documento completo, ou `null` se o CNPJ não está na base (404). Exige chave. */
+  /** Documento completo, ou `null` se o CNPJ não está na base (404). Sem chave, usa o limite de teste por IP. */
   consultar(cnpj: string, opcoes: OpcoesConsulta & { formato: 'simplificado' }): Promise<EmpresaSimplificada | null>;
   consultar(cnpj: string, opcoes?: OpcoesConsulta & { formato?: 'completo' }): Promise<EmpresaCompleta | null>;
   consultar(cnpj: string, opcoes?: OpcoesConsulta): Promise<EmpresaCompleta | EmpresaSimplificada | null>;
@@ -360,6 +366,7 @@ export type CodigoErro =
 export interface ExtrasErro {
   retryAfter?: number | null;
   upgradeUrl?: string | null;
+  signupUrl?: string | null;
   reset?: number | null;
   cnpj?: string | null;
   details?: unknown;
@@ -377,6 +384,7 @@ export class ApipjErro extends Error {
   retryAfter: number | null;
   /** Página de planos (só em `quota_exceeded`). */
   upgradeUrl: string | null;
+  signupUrl: string | null;
   /** Epoch Unix (s) em que a cota mensal zera (só em `quota_exceeded`). */
   reset: number | null;
   /** Entrada normalizada (só em `invalid_cnpj`). */

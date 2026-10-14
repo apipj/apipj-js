@@ -2,6 +2,13 @@
 
 Todas as mudanças relevantes deste pacote. Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões seguem [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.2.0] - 2026-10-14
+
+### Adicionado
+
+- Consulta sem chave: sem `chave` nem `APIPJ_KEY`, `consultar` chama a API sem autenticação (limite de teste por IP) em vez de lançar 401 local, e avisa uma vez no console com o link da chave grátis (`avisos: false` desliga).
+- `ApipjErro.signupUrl` (link de cadastro no 429 da consulta sem chave) e `limites.semChave` e `limites.diario` (cabeçalhos `X-Apipj-Acesso` e `X-Daily-*`).
+
 ## [0.1.1] - 2026-10-13
 
 ### Alterado

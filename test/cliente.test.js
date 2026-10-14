@@ -38,8 +38,10 @@ test('consultar: normaliza, manda a chave e o User-Agent e devolve o documento',
   assert.equal(r.headers.authorization, `Bearer ${CHAVE}`);
   assert.equal(r.headers['user-agent'], `apipj-js/${VERSAO}`);
   assert.deepEqual(api.limites, {
+    semChave: false,
     porMinuto: { limite: 10, restante: 9, reset: 6 },
     mensal: { limite: 50000, restante: 49999, reset: 1793502000 },
+    diario: { limite: null, restante: null, reset: null },
   });
 });
 
@@ -58,18 +60,56 @@ test('consultar: CNPJ inválido lança invalid_cnpj sem chamar a API', async () 
   assert.equal(srv.requisicoes.length, 0);
 });
 
-test('chave: lê APIPJ_KEY só na hora de consultar; sem chave lança 401 local', async () => {
+test('chave: lê APIPJ_KEY só na hora de consultar; sem chave consulta sem Authorization e avisa uma vez', async () => {
   tratador = (req, res) => json(res, 200, documento(CNPJ));
   const antes = process.env.APIPJ_KEY;
+  const avisoOriginal = console.warn;
+  const avisos = [];
+  console.warn = (m) => avisos.push(m);
+  try {
+    delete process.env.APIPJ_KEY;
+    const api = new Apipj({ baseUrl: srv.url, tentativas: 1 });
+    await api.consultar(CNPJ);
+    await api.consultar(CNPJ);
+    assert.equal(srv.requisicoes.length, 2);
+    assert.equal(srv.requisicoes[0].headers.authorization, undefined);
+    assert.equal(avisos.length, 1, 'avisa uma vez só');
+    assert.ok(avisos[0].includes('criar-conta?origem=api-lib-npm-apipj'));
+    const quieto = new Apipj({ baseUrl: srv.url, avisos: false });
+    await quieto.consultar(CNPJ);
+    assert.equal(avisos.length, 1, 'avisos: false');
+    process.env.APIPJ_KEY = 'apipj_live_do_ambiente';
+    await api.consultar(CNPJ);
+    assert.equal(srv.requisicoes[3].headers.authorization, 'Bearer apipj_live_do_ambiente');
+  } finally {
+    console.warn = avisoOriginal;
+    if (antes === undefined) delete process.env.APIPJ_KEY;
+    else process.env.APIPJ_KEY = antes;
+  }
+});
+
+test('sem chave: limite de teste vira 429 com signupUrl; limites trazem o diário', async () => {
+  const cad = 'https://apipj.com.br/criar-conta?origem=api-lib-npm-apipj';
+  let n = 0;
+  tratador = (req, res) => (n++ === 0
+    ? json(res, 200, documento(CNPJ), { 'X-Apipj-Acesso': 'sem-chave', 'X-RateLimit-Limit': '3', 'X-RateLimit-Remaining': '2', 'X-RateLimit-Reset': '1', 'X-Daily-Limit': '100', 'X-Daily-Remaining': '99', 'X-Daily-Reset': '1793502000' })
+    : json(res, 429, { status: 'ERROR', message: `Limite diário sem chave de API: 100 consultas. Crie uma chave grátis: ${cad}`, code: 'quota_exceeded', signup_url: cad, reset: 1793502000 }));
+  const antes = process.env.APIPJ_KEY;
+  const avisoOriginal = console.warn;
+  console.warn = () => {};
   try {
     delete process.env.APIPJ_KEY;
     const api = new Apipj({ baseUrl: srv.url });
-    await rejeita(api.consultar(CNPJ), { status: 401, code: 'unauthorized' });
-    assert.equal(srv.requisicoes.length, 0);
-    process.env.APIPJ_KEY = 'apipj_live_do_ambiente';
     await api.consultar(CNPJ);
-    assert.equal(srv.requisicoes[0].headers.authorization, 'Bearer apipj_live_do_ambiente');
+    assert.equal(api.limites.semChave, true);
+    assert.deepEqual(api.limites.diario, { limite: 100, restante: 99, reset: 1793502000 });
+    const e = await api.consultar(CNPJ).catch((x) => x);
+    assert.ok(e instanceof ApipjErro);
+    assert.equal(e.status, 429);
+    assert.equal(e.code, 'quota_exceeded');
+    assert.equal(e.signupUrl, cad);
   } finally {
+    console.warn = avisoOriginal;
     if (antes === undefined) delete process.env.APIPJ_KEY;
     else process.env.APIPJ_KEY = antes;
   }

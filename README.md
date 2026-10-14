@@ -16,7 +16,7 @@
 npm install apipj
 ```
 
-Crie uma conta grátis em [apipj.com.br/criar-conta](https://apipj.com.br/criar-conta), gere a chave no painel e exporte-a:
+**Para testar, não precisa de chave:** sem `APIPJ_KEY`, `consultar` usa a consulta sem chave da API, com limite de teste por IP (hoje 3 consultas por minuto e 100 por dia), e avisa uma vez no console. Para uso real, crie uma conta grátis em [apipj.com.br/criar-conta](https://apipj.com.br/criar-conta?origem=api-lib-npm-apipj) (10 consultas por minuto e 50 mil por mês, sem cartão), gere a chave no painel e exporte-a:
 
 ```bash
 export APIPJ_KEY=apipj_live_...
@@ -100,9 +100,9 @@ try {
   switch (e.code) {
     case 'invalid_cnpj':   // 400: formato ou dígito verificador inválido (verificado antes de chamar a API)
       break;
-    case 'unauthorized':   // 401: chave ausente, inválida ou revogada
+    case 'unauthorized':   // 401: chave inválida ou revogada (ou consulta sem chave fechada; e.signupUrl)
       break;
-    case 'quota_exceeded': // 429: cota mensal esgotada; e.upgradeUrl aponta para os planos, e.reset é quando zera
+    case 'quota_exceeded': // 429: cota mensal esgotada (e.upgradeUrl, e.reset) ou, sem chave, limite do dia (e.signupUrl)
       break;
     case 'rate_limited':   // 429: limite por minuto, mesmo depois de esperar Retry-After em todas as tentativas; e.retryAfter
       break;
